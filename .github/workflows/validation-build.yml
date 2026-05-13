@@ -1,6 +1,10 @@
 name: Validation Build
 
 on:
+  push:
+    branches:
+      - main
+
   pull_request:
     branches:
       - main
@@ -27,7 +31,6 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      # 🔍 CodeQL init
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -36,13 +39,51 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      # CodeQL requires build step
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
       - name: Test
         run: dotnet test --configuration Release --no-build --verbosity normal
 
-      # 🔍 CodeQL analysis
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+
+  claude-pr-review:
+    name: Claude PR Review
+    runs-on: ubuntu-latest
+    needs: build-test-codeql
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Load PR review prompt
+        id: prompt
+        shell: bash
+        run: |
+          {
+            echo 'PROMPT<<EOF'
+            cat .github/prompts/review_pr.prompt.md
+            echo
+            echo "Repository: ${{ github.repository }}"
+            echo "Pull Request: #${{ github.event.pull_request.number }}"
+            echo "Base branch: ${{ github.base_ref }}"
+            echo "Head branch: ${{ github.head_ref }}"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude PR Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.prompt.outputs.PROMPT }}
+          claude_args: |
+            --max-turns 5
