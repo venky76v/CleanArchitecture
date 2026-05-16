@@ -8,6 +8,12 @@ Use the repository guidance and engineering standards defined in:
 
 This is an advisory PR review.
 
+Post the review back to GitHub:
+
+- Use `gh pr comment` for the overall summary.
+- Use `mcp__github_inline_comment__create_inline_comment` with `confirmed: true` for file-specific findings.
+- Only post the review as GitHub comments. Do not leave the review only in the action output.
+
 Do not:
 - approve or reject the PR
 - create commits
